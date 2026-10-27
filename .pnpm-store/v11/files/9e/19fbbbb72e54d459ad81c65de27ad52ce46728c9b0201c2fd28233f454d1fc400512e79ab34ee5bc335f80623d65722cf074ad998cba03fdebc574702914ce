@@ -1,0 +1,119 @@
+{
+  "name": "@somnia-chain/markets-sdk",
+  "version": "0.32.1",
+  "description": "TypeScript SDK for Somnia Markets: live order books, account views, trading, and React hooks. Market watches stream chain events; account views combine event updates with polling.",
+  "homepage": "https://prd.smk.somnia.host/docs/typescript",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/somnia-chain/somnia-markets.git",
+    "directory": "packages/sdk"
+  },
+  "files": [
+    "src",
+    "dist",
+    "docs",
+    "!docs/api",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./chains": {
+      "types": "./dist/chains/index.d.ts",
+      "default": "./dist/chains/index.js"
+    },
+    "./reactivity": {
+      "types": "./dist/reactivity/index.d.ts",
+      "default": "./dist/reactivity/index.js"
+    },
+    "./native": {
+      "types": "./dist/native/index.d.ts",
+      "default": "./dist/native/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "dependencies": {
+    "@graphql-typed-document-node/core": "^3.2.0",
+    "@somnia-chain/accounts-sdk": "^0.4.0",
+    "isows": "^1.0.7",
+    "ws": "^8.21.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^7.2.0",
+    "@graphql-codegen/client-preset": "^6.1.0",
+    "@graphql-codegen/schema-ast": "^6.1.0",
+    "@somnia-chain/reactivity": "^0.2.1",
+    "@tanstack/react-query": "^5.59.0",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
+    "graphql": "^16.14.2",
+    "jsdom": "^26",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "typedoc": "^0.28.19",
+    "typedoc-plugin-markdown": "^4.12.0",
+    "typescript": "6.0.3",
+    "viem": "^2",
+    "vitest": "^3.2.7",
+    "wagmi": "^2.13.0",
+    "@somnia-chain/deployments": "0.2.0"
+  },
+  "peerDependencies": {
+    "@somnia-chain/reactivity": "^0.2.1",
+    "react": ">=18",
+    "viem": "^2.18.5"
+  },
+  "peerDependenciesMeta": {
+    "@somnia-chain/reactivity": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "dev": "tsc --watch",
+    "gen:addresses": "node scripts/gen-addresses.mjs",
+    "schema:pull": "node scripts/assert-hasura-ready.mjs && node scripts/assert-numeric-stringified.mjs && graphql-codegen --config codegen.schema.ts && node scripts/snapshot-stamp.mjs --write",
+    "gql:codegen": "graphql-codegen --config codegen.ts",
+    "gql:codegen:check": "graphql-codegen --config codegen.ts --check",
+    "schema:check": "node scripts/snapshot-stamp.mjs --check",
+    "types:regen": "scripts/regen-types.sh",
+    "types:regen:check": "scripts/regen-types.sh --check",
+    "corpus:gen": "CORPUS_WRITE=1 vitest run test/indexerReadCorpus.test.ts",
+    "corpus:check": "vitest run test/indexerReadCorpus.test.ts",
+    "errors:gen": "node scripts/gen-contract-errors.mjs",
+    "errors:check": "node scripts/gen-contract-errors.mjs --check",
+    "lint": "oxlint . --deny-warnings",
+    "lint:fix": "oxlint . --fix --deny-warnings",
+    "format": "oxfmt .",
+    "format:check": "oxfmt . --check",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "build": "tsc",
+    "docs": "typedoc",
+    "docs:lint": "typedoc --treatWarningsAsErrors",
+    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm errors:check && pnpm build && pnpm test && pnpm docs:lint",
+    "test": "vitest run",
+    "exports:dump": "node scripts/dump-exports.mjs src/index.ts src/react.ts"
+  },
+  "main": "./dist/index.js"
+}

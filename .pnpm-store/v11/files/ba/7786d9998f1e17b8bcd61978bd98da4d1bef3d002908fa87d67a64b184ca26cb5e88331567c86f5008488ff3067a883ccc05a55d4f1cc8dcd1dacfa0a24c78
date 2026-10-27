@@ -1,0 +1,55 @@
+{
+  "name": "@somnia-chain/accounts-sdk",
+  "version": "0.4.0",
+  "description": "Smart accounts on Somnia: derive an account's address offline, create it, manage its owners, sign through a chain of accounts, and read what controls it. The one gateway to the SomniaAccountFactory and the Safes it deploys.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/somnia-chain/somnia-accounts.git",
+    "directory": "packages/sdk"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "!docs/api",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "node scripts/generate-deployments.mjs && tsc",
+    "dev": "tsc --watch",
+    "deployments": "node scripts/generate-deployments.mjs",
+    "docs": "node scripts/generate-deployments.mjs && typedoc",
+    "docs:lint": "node scripts/generate-deployments.mjs && typedoc --treatWarningsAsErrors",
+    "docs:examples": "node scripts/generate-doc-examples.mjs",
+    "docs:examples-check": "node scripts/generate-doc-examples.mjs --check",
+    "typecheck": "node scripts/generate-deployments.mjs && tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "node scripts/generate-deployments.mjs && vitest run",
+    "verify": "pnpm typecheck && pnpm build && pnpm test && pnpm docs:examples-check && pnpm docs:lint",
+    "abis": "node scripts/generate-abis.mjs",
+    "abis-check": "node scripts/generate-abis.mjs --check"
+  },
+  "peerDependencies": {
+    "viem": "^2"
+  },
+  "devDependencies": {
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.0",
+    "typescript": "^5.9.3",
+    "viem": "^2.40.0",
+    "vitest": "^3.2.4"
+  }
+}

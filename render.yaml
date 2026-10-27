@@ -1,0 +1,29 @@
+# Region should match the Prisma Postgres region.
+services:
+  - type: web
+    name: wipeout-map-server
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CORS_ALLOW_VERCEL_PREVIEWS
+        value: "1"
+      - key: DB_POOL_MAX
+        value: "5"
+      - key: RPC_URL
+        value: https://api.hideki2.infra.testnet.somnia.network
+      - key: WS_URL
+        value: wss://api.hideki2.infra.testnet.somnia.network/ws
+      - key: INDEXER_URL
+        value: https://hideki-dev.smk.somnia.host/v1/graphql
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false

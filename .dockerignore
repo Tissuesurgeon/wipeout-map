@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+web/dist
+.env
+.env.*
+!.env.example
+data
+*.sqlite*
+.git
+mockups
+feedback
+probe
+coverage
+.about-backup
