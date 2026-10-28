@@ -580,6 +580,12 @@ async function recomputeLocal(db: Db, engine: Engine): Promise<void> {
 
 async function publishBuckets(db: Db, hub: Hub, engine: Engine): Promise<void> {
   const now = Date.now();
+  const ready: {
+    market: MarketInfo;
+    mark: bigint;
+    heat: ReturnType<typeof buildHeatmap>;
+    row: { feed_ok: number; updated_at: number; updated_block: string | null };
+  }[] = [];
   for (const market of engine.markets) {
     const mark = await marketMark(db, market.pool);
     if (mark <= 0n) continue;
@@ -600,30 +606,34 @@ async function publishBuckets(db: Db, hub: Hub, engine: Engine): Promise<void> {
       30,
       market.quoteDecimals,
     );
-    await withTx(db, async (client) => {
-      await client.query("DELETE FROM buckets WHERE pool = $1", [market.pool]);
-      await insertChunks(
-        client,
-        `INSERT INTO buckets (pool, side, price_lo, price_hi, notional, count, top_accounts_json, computed_at) VALUES`,
-        heat.buckets.map((bucket) => [
-          market.pool,
-          bucket.side,
-          bucket.priceLo.toString(),
-          bucket.priceHi.toString(),
-          bucket.notional.toString(),
-          bucket.count,
-          JSON.stringify(bucket.topAccounts.map((a) => ({ account: a.account, notional: a.notional.toString() }))),
-          now,
-        ]),
-      );
-    });
     const row = await one<{ feed_ok: number; updated_at: number; updated_block: string | null }>(
       db,
       "SELECT feed_ok, updated_at, updated_block FROM markets WHERE pool = $1",
       [market.pool],
     );
     if (!row) continue;
-    const payload = heatmapPayload(market, heat, mark, row.updated_block ?? engine.block.toString(), row.updated_at, row.feed_ok === 1, false);
+    ready.push({ market, mark, heat, row });
+  }
+  if (ready.length > 0) await withTx(db, async (client) => {
+    const pools = ready.map((item) => item.market.pool);
+    await client.query("DELETE FROM buckets WHERE pool = ANY($1::text[])", [pools]);
+    await insertChunks(
+      client,
+      `INSERT INTO buckets (pool, side, price_lo, price_hi, notional, count, top_accounts_json, computed_at) VALUES`,
+      ready.flatMap((item) => item.heat.buckets.map((bucket) => [
+        item.market.pool,
+        bucket.side,
+        bucket.priceLo.toString(),
+        bucket.priceHi.toString(),
+        bucket.notional.toString(),
+        bucket.count,
+        JSON.stringify(bucket.topAccounts.map((a) => ({ account: a.account, notional: a.notional.toString() }))),
+        now,
+      ])),
+    );
+  });
+  for (const item of ready) {
+    const payload = heatmapPayload(item.market, item.heat, item.mark, item.row.updated_block ?? engine.block.toString(), item.row.updated_at, item.row.feed_ok === 1, false);
     hub.broadcast({ type: "zones", ...payload });
     hub.broadcast({ type: "bucket_update", ...payload });
   }
@@ -880,33 +890,41 @@ async function liveFill(db: Db, ex: SomniaMarkets, engine: Engine, account: Addr
   const [health] = await readHealth(client, market.marginBank, [account]);
   const positions = await readPositions(client, market.marginBank, holders);
   await withWriteLock(async () => {
-    if (health) {
-      await db.query(
-        `INSERT INTO accounts (account, margin_bank, equity, mm_req, im_req, cm_req, status, markets_count, is_demo_bot, updated_block, dirty, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, 0, $10)
-         ON CONFLICT (account) DO UPDATE SET equity = EXCLUDED.equity, mm_req = EXCLUDED.mm_req, im_req = EXCLUDED.im_req, cm_req = EXCLUDED.cm_req, status = EXCLUDED.status, markets_count = EXCLUDED.markets_count, updated_at = EXCLUDED.updated_at`,
-        [
+    await withTx(db, async (tx) => {
+      if (health) {
+        await tx.query(
+          `INSERT INTO accounts (account, margin_bank, equity, mm_req, im_req, cm_req, status, markets_count, is_demo_bot, updated_block, dirty, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, 0, $10)
+           ON CONFLICT (account) DO UPDATE SET equity = EXCLUDED.equity, mm_req = EXCLUDED.mm_req, im_req = EXCLUDED.im_req, cm_req = EXCLUDED.cm_req, status = EXCLUDED.status, markets_count = EXCLUDED.markets_count, updated_at = EXCLUDED.updated_at`,
+          [
+            account,
+            market.marginBank,
+            health.equity.toString(),
+            health.mmReq.toString(),
+            health.imReq.toString(),
+            health.cmReq.toString(),
+            health.status,
+            positions.length,
+            engine.block.toString(),
+            Date.now(),
+          ],
+        );
+      }
+      await insertChunks(
+        tx,
+        `INSERT INTO positions (pool, account, size_signed, entry, liq_price, liq_kind, updated_block) VALUES`,
+        positions.map((position) => [
+          position.pool,
           account,
-          market.marginBank,
-          health.equity.toString(),
-          health.mmReq.toString(),
-          health.imReq.toString(),
-          health.cmReq.toString(),
-          health.status,
-          positions.length,
+          position.size.toString(),
+          position.entry.toString(),
+          "0",
+          "unreachable",
           engine.block.toString(),
-          Date.now(),
-        ],
+        ]),
+        ` ON CONFLICT (pool, account) DO UPDATE SET size_signed = EXCLUDED.size_signed, entry = EXCLUDED.entry`,
       );
-    }
-    for (const position of positions) {
-      await db.query(
-        `INSERT INTO positions (pool, account, size_signed, entry, liq_price, liq_kind, updated_block)
-         VALUES ($1, $2, $3, $4, '0', 'unreachable', $5)
-         ON CONFLICT (pool, account) DO UPDATE SET size_signed = EXCLUDED.size_signed, entry = EXCLUDED.entry`,
-        [position.pool, account, position.size.toString(), position.entry.toString(), engine.block.toString()],
-      );
-    }
+    });
     await recomputeLocal(db, engine);
   });
 }

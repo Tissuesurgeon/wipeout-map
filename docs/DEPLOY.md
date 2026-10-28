@@ -59,4 +59,4 @@ Redeploy the Render service. Preview deployments are already allowed when `CORS_
 - **CORS error in the browser.** Set `CORS_ORIGINS` to the exact Vercel origin, including `https://`, and redeploy Render.
 - **The socket keeps reconnecting.** `VITE_WS_URL` must be `wss://<service>.onrender.com/ws`, not `https://` and not `ws://`.
 - **"too many connections".** Lower `DB_POOL_MAX` (the Blueprint sets `5`).
-- **Health check failing.** Open the Render logs. A missing `DATABASE_URL` fails startup with `DATABASE_URL is required`. `/api/health` stays HTTP 200 while the first sweep is still running; `ready` flips to `true` when the book is loaded.
+- **Health check failing, or `ENOTFOUND base`.** The service crashed before it listened. `DATABASE_URL` and `DIRECT_URL` must be the Prisma strings alone (`postgres://...@pooled.db.prisma.io...` and `postgres://...@db.prisma.io...`). Do not include quotes or the `DATABASE_URL=` name. A missing `DATABASE_URL` fails startup with `DATABASE_URL is required`. `/api/health` stays HTTP 200 while the first sweep is still running; `ready` flips to `true` when the book is loaded.

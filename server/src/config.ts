@@ -41,16 +41,40 @@ export function createExchange(): SomniaMarkets {
   });
 }
 
-function envValue(name: string): string {
-  const value = process.env[name] ?? "";
-  if (value.length >= 2 && value.startsWith("\"") && value.endsWith("\"")) return value.slice(1, -1);
+function postgresUrl(name: string): string {
+  let value = (process.env[name] ?? "").trim();
+  const labeled = value.match(/^(?:DATABASE_URL|DIRECT_URL|POSTGRES_URL|PRISMA_DATABASE_URL)\s*=\s*([\s\S]*)$/);
+  if (labeled?.[1]) value = labeled[1].trim();
+  for (let i = 0; i < 2; i += 1) {
+    const quoted =
+      (value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith("'") && value.endsWith("'"));
+    if (!quoted) break;
+    value = value.slice(1, -1).trim();
+  }
   return value;
 }
 
-export const DATABASE_URL = envValue("DATABASE_URL");
+function assertPostgresUrl(name: string, value: string): void {
+  let host = "";
+  try {
+    host = new URL(value).hostname;
+  } catch {
+    host = "";
+  }
+  if (!host || host === "base") {
+    throw new Error(
+      `${name} is not a postgres connection URL. In the Render env var, paste only the Prisma string (postgres://...), with no quotes and no ${name}= prefix.`,
+    );
+  }
+}
+
+export const DATABASE_URL = postgresUrl("DATABASE_URL");
 if (!DATABASE_URL) throw new Error("DATABASE_URL is required");
+assertPostgresUrl("DATABASE_URL", DATABASE_URL);
 if (!process.env.TELEGRAM_BOT_TOKEN) {
   console.warn("[wipeout] TELEGRAM_BOT_TOKEN is not set; alerts are off");
 }
-export const DIRECT_URL = envValue("DIRECT_URL") || DATABASE_URL;
+export const DIRECT_URL = postgresUrl("DIRECT_URL") || DATABASE_URL;
+assertPostgresUrl("DIRECT_URL", DIRECT_URL);
 export const DB_POOL_MAX = Number(process.env.DB_POOL_MAX ?? 5);
